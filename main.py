@@ -4,7 +4,7 @@ from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # === Config ===
-TOKEN = os.getenv("8420633772:AAFaodWgMI598g2GCIZRgDbGvabV0lthD2g")  # pon tu token en un env var de Render
+TOKEN = os.getenv("TELEGRAM_TOKEN")  # pon tu token en un env var de Render
 PUBLIC_URL = os.getenv("https://botemb.onrender.com")  # ej: https://tu-servicio.onrender.com
 SET_WEBHOOK = os.getenv("SET_WEBHOOK_ON_START", "0") == "1"
 if not TOKEN:
