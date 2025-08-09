@@ -6,7 +6,7 @@ from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters, Ca
 # === Config ===
 TOKEN = os.getenv("8420633772:AAFaodWgMI598g2GCIZRgDbGvabV0lthD2g")  # pon tu token en un env var de Render
 PUBLIC_URL = os.getenv("https://botemb.onrender.com")  # ej: https://tu-servicio.onrender.com
-
+SET_WEBHOOK = os.getenv("SET_WEBHOOK_ON_START", "0") == "1"
 if not TOKEN:
     raise RuntimeError("Falta TELEGRAM_TOKEN en variables de entorno.")
 
@@ -77,14 +77,21 @@ def webhook():
     return jsonify({"status": "ok"}), 200
 
 # Configura el webhook al iniciar en Render
-with app.app_context():
-    if PUBLIC_URL:
-        webhook_url = f"{PUBLIC_URL}/webhook/{TOKEN}"
-        try:
+  if not BASE_URL:
+        print("[init] BASE_URL no está definido; no se configurará webhook.")
+        return
+    url = f"{BASE_URL}/{TOKEN}"
+    try:
+        current = bot.get_webhook_info().url
+        if current != url:
             bot.delete_webhook()
-        except Exception:
-            pass
-        bot.set_webhook(url=webhook_url)
+            bot.set_webhook(url=url)
+            print(f"[init] Webhook configurado: {url}")
+        else:
+            print(f"[init] Webhook ya apuntaba a: {url}")
+    except Exception as e:
+        print(f"[init] No se pudo configurar el webhook: {e}")
+
 
 if __name__ == "__main__":
     # Para correr localmente: export PUBLIC_URL="https://<ngrok>.ngrok.io"
