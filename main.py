@@ -1,18 +1,19 @@
+# main.py
 import os
 from flask import Flask, request, jsonify
 from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # === Config ===
-TOKEN = os.getenv("TELEGRAM_TOKEN")  # pon tu token en un env var de Render
-PUBLIC_URL = os.getenv("https://botemb.onrender.com")  # ej: https://tu-servicio.onrender.com
-SET_WEBHOOK = os.getenv("SET_WEBHOOK_ON_START", "0") == "1"
+TOKEN = os.getenv("TELEGRAM_TOKEN")                # En Render
+BASE_URL = os.getenv("BASE_URL")                   # ej: https://botemb.onrender.com
+
 if not TOKEN:
     raise RuntimeError("Falta TELEGRAM_TOKEN en variables de entorno.")
+if not BASE_URL:
+    raise RuntimeError("Falta BASE_URL en variables de entorno.")
 
 bot = Bot(token=TOKEN)
-
-# Dispatcher sin Updater (apto para webhook)
 dispatcher = Dispatcher(bot=bot, update_queue=None, workers=4, use_context=True)
 
 # === Handlers ===
@@ -23,10 +24,14 @@ def start(update: Update, context: CallbackContext):
     usuarios[chat_id] = {"step": 1}
     context.bot.send_message(chat_id=chat_id, text="👋 ¡Hola! ¿Cómo te llamas?")
 
+def help_cmd(update: Update, context: CallbackContext):
+    update.message.reply_text("Comandos: /start")
+
 def es_entero(txt: str) -> bool:
     try:
         int(txt); return True
-    except: return False
+    except:
+        return False
 
 def message_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
@@ -37,13 +42,11 @@ def message_handler(update: Update, context: CallbackContext):
         return
 
     step = usuarios[chat_id].get("step", 1)
-
     if step == 1:
         usuarios[chat_id]["nombre"] = text
         usuarios[chat_id]["step"] = 2
         context.bot.send_message(chat_id=chat_id, text=f"Encantado, {text}. Dame un número entero.")
         return
-
     if step == 2:
         if not es_entero(text):
             context.bot.send_message(chat_id=chat_id, text="Solo enteros, intenta de nuevo.")
@@ -53,9 +56,6 @@ def message_handler(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=chat_id, text="¡Listo! Guardé tu dato. Escribe /start para reiniciar.")
         return
 
-def help_cmd(update: Update, context: CallbackContext):
-    update.message.reply_text("Comandos: /start")
-
 dispatcher.add_handler(CommandHandler("start", start))
 dispatcher.add_handler(CommandHandler("help", help_cmd))
 dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, message_handler))
@@ -63,12 +63,12 @@ dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, message_h
 # === Flask app ===
 app = Flask(__name__)
 
-@app.route("/", methods=["GET"])
+@app.get("/")
 def health():
-    return "OK", 200
+    return jsonify(status="ok", service="telegram-bot", webhook=f"/webhook/{TOKEN}")
 
-@app.route(f"/webhook/{TOKEN}", methods=["POST"])
-def webhook():
+@app.post(f"/webhook/{TOKEN}")
+def telegram_webhook():
     data = request.get_json(force=True, silent=True)
     if not data:
         return jsonify({"status": "no data"}), 400
@@ -76,11 +76,9 @@ def webhook():
     dispatcher.process_update(update)
     return jsonify({"status": "ok"}), 200
 
-# Configura el webhook al iniciar en Render
-  if not BASE_URL:
-        print("[init] BASE_URL no está definido; no se configurará webhook.")
-        return
-    url = f"{BASE_URL}/{TOKEN}"
+def ensure_webhook():
+    """Configura/valida el webhook siempre al iniciar."""
+    url = f"{BASE_URL}/webhook/{TOKEN}"  # Debe coincidir con la ruta Flask
     try:
         current = bot.get_webhook_info().url
         if current != url:
@@ -92,7 +90,7 @@ def webhook():
     except Exception as e:
         print(f"[init] No se pudo configurar el webhook: {e}")
 
-
 if __name__ == "__main__":
-    # Para correr localmente: export PUBLIC_URL="https://<ngrok>.ngrok.io"
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+    ensure_webhook()  # <-- siempre
+    port = int(os.getenv("PORT", "10000"))
+    app.run(host="0.0.0.0", port=port)
