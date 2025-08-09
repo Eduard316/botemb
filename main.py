@@ -4,8 +4,8 @@ from telegram import Bot, Update
 from telegram.ext import Dispatcher, CommandHandler, MessageHandler, Filters, CallbackContext
 
 # === Config ===
-TOKEN = os.getenv("TELEGRAM_TOKEN")  # pon tu token en un env var de Render
-PUBLIC_URL = os.getenv("PUBLIC_URL")  # ej: https://tu-servicio.onrender.com
+TOKEN = os.getenv("8420633772:AAFaodWgMI598g2GCIZRgDbGvabV0lthD2g")  # pon tu token en un env var de Render
+PUBLIC_URL = os.getenv("https://botemb.onrender.com")  # ej: https://tu-servicio.onrender.com
 
 if not TOKEN:
     raise RuntimeError("Falta TELEGRAM_TOKEN en variables de entorno.")
